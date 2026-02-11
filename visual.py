@@ -5,20 +5,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 import numpy as np
-import seaborn as sns
 
 # from ydata_profiling import ProfileReport
 # from streamlit_pandas_profiling import st_profile_report
 
 st.set_page_config(
-    page_title="Califronia Housing Dashboard 🏡",
+    page_title="Diabetes Dashboard",
     layout="centered",
     page_icon="🏡",
 )
 
 
 ## Step 01 - Setup
-st.sidebar.title("California - Real Estate Agency 🏡")
+st.sidebar.title("Diabetes Dashboard 🏡")
 page = st.sidebar.selectbox("Select Page",["Introduction 📘","Visualization 📊", "Automated Report 📑"])
 
 
