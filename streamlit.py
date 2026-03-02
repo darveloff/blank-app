@@ -12,18 +12,24 @@ from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 # -----------------------------
-# CONFIG
+# CONFIG & STYLING
 # -----------------------------
 DATA_PATH = "StudentPerformanceFactors.csv"
 TARGET_COL = "Exam_Score"  # falls back to last column if not found
 
-st.set_page_config(page_title="Student Performance", layout="wide")
+st.set_page_config(page_title="Student Performance", layout="wide", page_icon="🎓")
+
+# Set seaborn theme for more pleasing visuals
+sns.set_theme(style="whitegrid", palette="muted")
 
 # -----------------------------
 # LEFT NAV (6 tabs)
 # -----------------------------
-tabs = ["Welcome", "About", "Explore", "Visualizations", "Predictions", "Conclusion"]
-selected = st.sidebar.radio("Navigation", tabs, index=3)
+with st.sidebar:
+    st.title("🎓 Student Dashboard")
+    st.markdown("Navigate through the analysis pipeline.")
+    tabs = ["Welcome", "About", "Explore", "Visualizations", "Predictions", "Conclusion"]
+    selected = st.radio("Navigation", tabs, index=3)
 
 # Load dataset
 @st.cache_data
@@ -42,7 +48,7 @@ except FileNotFoundError:
 # Empty tabs (for now)
 if selected not in ["Visualizations", "Predictions"]:
     st.title(selected)
-    st.info(f"The {selected} page is currently under construction.")
+    st.info(f"The {selected} page is currently under construction. 🚧")
     st.stop()
 
 # -----------------------------
@@ -50,7 +56,7 @@ if selected not in ["Visualizations", "Predictions"]:
 # -----------------------------
 if selected == "Visualizations":
     st.title("Data Visualizations 📊")
-    st.markdown("All visualizations derived exactly from the Google Colab Notebook.")
+    st.markdown("Explore various aspects of the student performance dataset through the tabs below.")
 
     # 1. Preprocess data specifically for the Correlation Matrix (Matches Colab)
     df_corr = df.copy()
@@ -93,90 +99,112 @@ if selected == "Visualizations":
 
     df_corr["Peer_Influence"] = df_corr["Peer_Influence"].fillna(-1)
 
-    # 2. Render the Correlation Matrix
-    st.markdown("### Correlation Matrix")
-    corr = df_corr.corr()
-    fig_corr, ax_corr = plt.subplots(figsize=(10, 8))
-    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax_corr)
-    plt.title("Correlation Matrix")
-    st.pyplot(fig_corr)
-    
-    st.divider()
+    # 2. Create Sub-tabs for better UI
+    viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
+        "Correlation 🔗", 
+        "Distributions 📊", 
+        "Relationships 📈", 
+        "Categorical Impacts 📦"
+    ])
 
-    # 3. Render all other plots in a clean 2-column layout
-    col1, col2 = st.columns(2)
+    # --- SUB-TAB 1: Correlation ---
+    with viz_tab1:
+        st.subheader("Feature Correlation Matrix")
+        st.markdown("This heatmap shows the linear relationships between encoded features.")
+        corr = df_corr.corr()
+        fig_corr, ax_corr = plt.subplots(figsize=(10, 8))
+        sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax_corr, 
+                    cbar_kws={'label': 'Correlation Coefficient'})
+        plt.title("Correlation Matrix")
+        st.pyplot(fig_corr)
 
-    with col1:
-        st.markdown("### Distribution of Exam Score")
-        fig, ax = plt.subplots()
-        sns.histplot(df["Exam_Score"], kde=True, ax=ax)
-        plt.title("Distribution of Exam Score")
-        st.pyplot(fig)
+    # --- SUB-TAB 2: Distributions ---
+    with viz_tab2:
+        st.subheader("Target Variable Distribution")
+        col1, col2 = st.columns(2)
+        with col1:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.histplot(df["Exam_Score"], kde=True, ax=ax, color="skyblue")
+            plt.title("Distribution of Exam Score")
+            st.pyplot(fig)
+        with col2:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.boxplot(x=df["Exam_Score"], ax=ax, color="lightgreen")
+            plt.title("Exam Score Boxplot")
+            st.pyplot(fig)
 
-        st.markdown("### Attendance vs Exam Score")
-        fig, ax = plt.subplots()
-        sns.regplot(x="Attendance", y="Exam_Score", data=df, ax=ax)
-        plt.title("Attendance vs Exam Score")
-        st.pyplot(fig)
+    # --- SUB-TAB 3: Relationships ---
+    with viz_tab3:
+        st.subheader("Numerical Features vs. Target")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.regplot(x="Attendance", y="Exam_Score", data=df, ax=ax, scatter_kws={'alpha':0.5})
+            plt.title("Attendance vs Exam Score")
+            st.pyplot(fig)
 
-        st.markdown("### Previous Scores vs Exam Score")
-        fig, ax = plt.subplots()
-        sns.regplot(x="Previous_Scores", y="Exam_Score", data=df, ax=ax)
-        plt.title("Previous Scores vs Exam Score")
-        st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.regplot(x="Previous_Scores", y="Exam_Score", data=df, ax=ax, scatter_kws={'alpha':0.5})
+            plt.title("Previous Scores vs Exam Score")
+            st.pyplot(fig)
 
-        st.markdown("### Access to Resources Impact")
-        fig, ax = plt.subplots()
-        sns.boxplot(x="Access_to_Resources", y="Exam_Score", data=df, ax=ax)
-        plt.title("Access to Resources Impact")
-        st.pyplot(fig)
+        with col2:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.regplot(x="Hours_Studied", y="Exam_Score", data=df, ax=ax, scatter_kws={'alpha':0.5})
+            plt.title("Hours Studied vs Exam Score")
+            st.pyplot(fig)
 
-        st.markdown("### Study Hours by Attendance")
-        fig, ax = plt.subplots()
-        sns.scatterplot(x="Hours_Studied", y="Exam_Score", hue="Attendance", data=df, ax=ax)
-        plt.title("Study Hours by Attendance")
-        st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.scatterplot(x="Hours_Studied", y="Exam_Score", hue="Attendance", data=df, ax=ax, palette="viridis", alpha=0.7)
+            plt.title("Study Hours by Attendance")
+            st.pyplot(fig)
 
-    with col2:
-        st.markdown("### Exam Score Boxplot")
-        fig, ax = plt.subplots()
-        sns.boxplot(x=df["Exam_Score"], ax=ax)
-        plt.title("Exam Score Boxplot")
-        st.pyplot(fig)
+    # --- SUB-TAB 4: Categorical Impacts ---
+    with viz_tab4:
+        st.subheader("Impact of Categorical Variables on Exam Scores")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.boxplot(x="Parental_Involvement", y="Exam_Score", data=df, ax=ax, palette="Set2")
+            plt.title("Parental Involvement Impact")
+            st.pyplot(fig)
 
-        st.markdown("### Hours Studied vs Exam Score")
-        fig, ax = plt.subplots()
-        sns.regplot(x="Hours_Studied", y="Exam_Score", data=df, ax=ax)
-        plt.title("Hours Studied vs Exam Score")
-        st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.barplot(x="Tutoring_Sessions", y="Exam_Score", data=df, ax=ax, palette="Set2", errorbar=None)
+            plt.title("Tutoring Sessions Impact")
+            st.pyplot(fig)
 
-        st.markdown("### Parental Involvement Impact")
-        fig, ax = plt.subplots()
-        sns.boxplot(x="Parental_Involvement", y="Exam_Score", data=df, ax=ax)
-        plt.title("Parental Involvement Impact")
-        st.pyplot(fig)
-
-        st.markdown("### Tutoring Sessions Impact")
-        fig, ax = plt.subplots()
-        sns.barplot(x="Tutoring_Sessions", y="Exam_Score", data=df, ax=ax)
-        plt.title("Tutoring Sessions Impact")
-        st.pyplot(fig)
+        with col2:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.boxplot(x="Access_to_Resources", y="Exam_Score", data=df, ax=ax, palette="Set2")
+            plt.title("Access to Resources Impact")
+            st.pyplot(fig)
 
 # -----------------------------
 # PREDICTIONS TAB
 # -----------------------------
 if selected == "Predictions":
-    st.title("Predictions 🧠")
+    st.title("Model Predictions 🧠")
+    st.markdown("Configure hyperparameters, add engineered features, and evaluate regression models.")
 
-    # UI controls (only what you requested)
-    model_name = st.selectbox("Model", ["Linear Regression", "Ridge", "Lasso"])
-    test_size_pct = st.slider("Test size (%)", min_value=15, max_value=25, value=20, step=1)
-    add_engagement = st.checkbox("Add engagement feature")
+    with st.container(border=True):
+        st.subheader("Model Configuration")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            model_name = st.selectbox("Select Model", ["Linear Regression", "Ridge", "Lasso"])
+        with col2:
+            test_size_pct = st.slider("Test Set Size (%)", min_value=15, max_value=25, value=20, step=1)
+        with col3:
+            st.markdown("<br>", unsafe_allow_html=True) # Spacing alignment
+            add_engagement = st.checkbox("Add 'Engagement' Feature", help="Multiplies Attendance by Hours_Studied")
 
-    train_clicked = st.button("Train")
+        train_clicked = st.button("🚀 Train Model", type="primary", use_container_width=True)
 
     if train_clicked:
-        with st.spinner("Training model..."):
+        with st.spinner(f"Training {model_name}..."):
             # Prepare X, y
             X = df.drop(columns=[TARGET_COL]).copy()
             y = df[TARGET_COL].copy()
@@ -235,7 +263,11 @@ if selected == "Predictions":
             mae = mean_absolute_error(y_test, y_pred)
             rmse = (mean_squared_error(y_test, y_pred)) ** 0.5
 
-            st.success(f"{model_name} trained successfully!")
-            st.write(f"**R2:** {r2:.4f}")
-            st.write(f"**MAE:** {mae:.4f}")
-            st.write(f"**RMSE:** {rmse:.4f}")
+            st.success(f"🎉 **{model_name}** model trained successfully!")
+            
+            # Display metrics in a visually pleasing way
+            st.markdown("### Model Performance Metrics")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("R² Score", f"{r2:.4f}")
+            m2.metric("Mean Absolute Error", f"{mae:.4f}")
+            m3.metric("Root Mean Squared Error", f"{rmse:.4f}")
