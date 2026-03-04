@@ -127,6 +127,47 @@ if selected == "👩‍💻 Data Presentation":
     # Load dataset
     dataset = pd.read_csv("StudentPerformanceFactors.csv")
 
+    df_viz = dataset.copy()
+    
+    ordinal_cols = [
+        "Parental_Involvement", "Access_to_Resources", "Motivation_Level",
+        "Family_Income", "Teacher_Quality", "Parental_Education_Level", "Distance_from_Home"
+    ]
+
+    # normalize strings (keeps NaN as NaN)
+    df_viz[ordinal_cols] = df_viz[ordinal_cols].apply(lambda s: s.astype("string").str.strip().str.lower())
+
+    # impute missing values (most frequent category in each column)
+    for col in ordinal_cols:
+        df_viz[col] = df_viz[col].fillna(df_viz[col].mode(dropna=True)[0])
+
+    encoder = OrdinalEncoder(categories=[
+        ["low", "medium", "high"],          # Parental_Involvement
+        ["low", "medium", "high"],          # Access_to_Resources
+        ["low", "medium", "high"],          # Motivation_Level
+        ["low", "medium", "high"],          # Family_Income
+        ["low", "medium", "high"],          # Teacher_Quality
+        ["high school", "college", "postgraduate"],
+        ["near", "moderate", "far"]
+    ])
+
+    df_viz[ordinal_cols] = encoder.fit_transform(df_viz[ordinal_cols])
+
+    binary_maps = {
+        "Extracurricular_Activities": {"No": 0, "Yes": 1},
+        "Internet_Access": {"No": 0, "Yes": 1},
+        "School_Type": {"Public": 0, "Private": 1},
+        "Peer_Influence": {"Negative": 0, "Positive": 1},
+        "Learning_Disabilities": {"No": 0, "Yes": 1},
+        "Gender": {"Female": 0, "Male": 1},
+    }
+
+    for col, mp in binary_maps.items():
+        df_viz[col] = df_viz[col].astype("string").str.strip()
+        df_viz[col] = df_viz[col].map(mp)
+
+    df_viz["Peer_Influence"] = df_viz["Peer_Influence"].fillna(-1)
+
     # Horizontal option menu
     selected = option_menu(
         menu_title=None,
@@ -186,13 +227,23 @@ if selected == "👩‍💻 Data Presentation":
         else:
             st.dataframe(dataset.tail(10))
 
-        st.success(f"**Dataset Shape:** {dataset.shape[0]} rows and {dataset.shape[1]} columns")
+        st.subheader("Cleaned Data")
+        view_option = st.radio("View from:", ("Top", "Bottom"), key=1)
+        if view_option == "Top":
+            st.dataframe(df_viz.head(10))
+        else:
+            st.dataframe(df_viz.tail(10))
+
+        st.markdown("""*This table shows the cleaned dataset after categorical features have been encoded into numerical values for statistical analysis and modeling, i.e. Low, Medium, High --> 0, 1, 2*""")
+
+        st.success(f"**Dataset Shape:** {df_viz.shape[0]} rows and {df_viz.shape[1]} columns")
 
         st.write("### Statistical Summary")
-        st.write(dataset.describe())
+        st.write(df_viz.describe())
+        st.markdown("""*We can see that on average, attendance is around 80% and that interestingly, the average exam score feel down from 75 to 67*""")
 
         st.write("### Data Types")
-        dtypes = dataset.dtypes
+        dtypes = df_viz.dtypes
         dtype_details = {}
         for dtype in dtypes.unique():
             columns = dtypes[dtypes == dtype].index.tolist()
@@ -204,6 +255,22 @@ if selected == "👩‍💻 Data Presentation":
         dtype_df = pd.DataFrame(dtype_details).T.reset_index()
         dtype_df.columns = ['Data Type', 'Columns', 'Count']
         st.write(dtype_df)
+
+        st.write("### Feature Importance (Correlation with Exam Score)")
+
+        # Compute correlations with target
+        corr_with_target = df_viz.corr()["Exam_Score"].drop("Exam_Score")
+
+        # Sort by absolute correlation (strongest relationships first)
+        importance = corr_with_target.reindex(
+            corr_with_target.abs().sort_values(ascending=False).index
+        )
+
+        # Display as dataframe
+        importance_df = importance.reset_index()
+        importance_df.columns = ["Feature", "Correlation with Exam_Score"]
+        st.dataframe(importance_df)
+        st.markdown("""*Hence, Attendance, Hours Studied, and Previous Scores are the most important factors for Exam Scores*""")
     
 # -----------------------------
 # VISUALIZATIONS TAB
@@ -264,13 +331,36 @@ if selected == "📊 Data Viz":
     # --- SUB-TAB 1: Correlation ---
     with viz_tab1:
         st.subheader("Feature Correlation Matrix")
-        st.markdown("This heatmap shows the linear relationships between encoded features.")
         corr = df_corr.corr()
         fig_corr, ax_corr = plt.subplots(figsize=(10, 8))
         sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax_corr, 
                     cbar_kws={'label': 'Correlation Coefficient'}, annot_kws={"size": 7})
         plt.title("Correlation Matrix")
         st.pyplot(fig_corr)
+        st.markdown("*This heatmap shows the linear relationships between encoded features.*")
+
+        st.write("### Correlation-Based Feature Ranking")
+
+        # Compute correlations with target
+        corr_with_target = df_corr.corr()["Exam_Score"].drop("Exam_Score")
+
+        # Sort by absolute correlation (strongest relationships first)
+        importance = corr_with_target.reindex(
+            corr_with_target.abs().sort_values(ascending=False).index
+        )
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.barplot(
+            x=importance.values,
+            y=importance.index,
+            palette="coolwarm",
+            ax=ax
+        )
+        ax.set_title("Feature Importance (Correlation with Exam_Score)")
+        ax.set_xlabel("Correlation Coefficient")
+        ax.set_ylabel("Feature")
+        st.pyplot(fig)
+        st.markdown("*The correlations of factors with Exam Scores sorted by importance.*")
 
     # --- SUB-TAB 2: Distributions ---
     with viz_tab2:
@@ -297,6 +387,14 @@ if selected == "📊 Data Viz":
                     sns.histplot(df[numeric_cols[i + 1]], kde=True, ax=ax, color="lightgreen")
                     ax.set_title(f"{numeric_cols[i + 1]} Distribution")
                     st.pyplot(fig)
+        st.markdown(
+            """
+            ## Findings 🔍
+            - Exam Score distribution shows that there is low variance, i.e. that students perform decently very often and that getting high scores above 80 is rare.
+            - Attendance is quite evenly distributed and there are no students who attend less than 60% of classes
+            - Previous scores are very widely distributed and there were a lot of students who got a high score unlike current exam scores. Could imply collaboration between students
+            """
+        )
 
     # --- SUB-TAB 3: Relationships ---
     with viz_tab3:
@@ -310,6 +408,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Attendance, %")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** Exam scores tend to increase as attendance improves. Students with consistently high attendance generally achieve higher exam results, indicating a positive relationship between classroom participation and performance.""")
 
             fig, ax = plt.subplots(figsize=(6, 4))
             sns.regplot(x="Previous_Scores", y="Exam_Score", data=df, ax=ax, scatter_kws={'alpha':0.5})
@@ -317,6 +416,8 @@ if selected == "📊 Data Viz":
             plt.xlabel("Previous Scores")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** Previous academic performance is also associated with final exam outcomes. Students who performed well historically are more likely to maintain higher scores, suggesting performance consistency over time.""")
+
 
         with col2:
             fig, ax = plt.subplots(figsize=(6, 4))
@@ -325,6 +426,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Hours Studied")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** There is a positive relationship between study hours and exam scores, but less than Attendance and Hours Studied. Students dedicating more time to studying tend to achieve better results, though the relationship is not perfectly linear.""")
 
             fig, ax = plt.subplots(figsize=(6, 4))
             sns.scatterplot(x="Hours_Studied", y="Exam_Score", hue="Attendance", data=df, ax=ax, palette="viridis", alpha=0.7)
@@ -332,6 +434,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Hours Studied")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** In general, students who combine high study hours with strong attendance achieve the highest exam scores. This suggests that engagement inside and outside the classroom jointly contributes to academic success. However, among high achievers, attendance metrics are quite dispersed""")
 
     # --- SUB-TAB 4: Categorical Impacts ---
     with viz_tab4:
@@ -345,6 +448,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Parental Involvement")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** There is a weak but noticeable correlation between parental involvement and exam scores, which suggests that in families where parents are more involved with students, academic performance is higher""")
 
             fig, ax = plt.subplots(figsize=(6, 4))
             sns.barplot(x="Tutoring_Sessions", y="Exam_Score", data=df, ax=ax, palette="Set2", errorbar=None)
@@ -352,6 +456,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Number of Tutoring Sessions")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** The number of tutoring sessions has a weak positive relationship with exam scores, but it declines slightly after 6 sessions, suggesting that 6 is the optimal amount""")
 
         with col2:
             fig, ax = plt.subplots(figsize=(6, 4))
@@ -360,6 +465,7 @@ if selected == "📊 Data Viz":
             plt.xlabel("Access to Resources")
             plt.ylabel("Exam Score")
             st.pyplot(fig)
+            st.markdown("""**Finding:** Having access to educational resources leads to higher exam scores""")
 
 # -----------------------------
 # PREDICTIONS TAB
