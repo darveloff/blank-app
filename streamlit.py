@@ -55,13 +55,12 @@ if selected == "👋 Welcome":
         """
         ---
         ## 👋 Welcome!
-        This interactive dashboard allows you to explore factors affecting student exam scores, visualize relationships, and make predictions using regression models.
+        Our client is College Board, a non-profit College Entrance Examination Board whose goal is to expand access to higher education. In the light of the recent reinstating of mandatory standardized testing (SAT®/ACT®) across top US universities, College Board developed concerns regarding education environment factors that may impact objective evaluation of students' success on the exam.
 
-        Key objectives of this platform:
-        - Explore patterns in student performance and attendance.
-        - Visualize relationships between study habits, demographics, and exam scores.
-        - Train regression models to predict exam performance.
-        - Understand the impact of categorical and numerical features on outcomes.
+        Our team was approached with a task to analyse data about 6000+ high school students in order to determine what types of educational environments ensure optimal exam performance. This interactive platform allows you to:
+        - Explore key student performance indicators.
+        - Develop insights about factors that affect exam scores.
+        - Suggest measures that would make standardised testing a more objective metric.
         """
     )
 
@@ -81,42 +80,20 @@ if selected == "🔎 Business Case":
     st.title("🎓 CollegeBoard: Student Performance")
     st.image("logo.png", use_container_width=True)
     st.markdown("---")
-    st.header("About")
-    st.markdown("""
-    **OutLook Telecom : Annual Data Review** app is designed to provide insights and predictions based on the data collected over the past year by OutLook Telecom. This platform leverages predictive analytics and advanced data visualization techniques to help stakeholders make informed decisions about business strategies and opportunities for growth.
-                Our primary Focus is to analyse Customer retention and churn, which are critical factors in the telecom due to competition in the industry.
-    """)
 
-    st.header("Purpose")
+    st.header("Project Goal")
     st.markdown("""
-    The telecom industry generates a wealth of data, but extracting meaningful insights from this data can be challenging. By building this platform for **Outlook Telecom** using their 2024 dataset from the state of **Califonia**, we aim to provide decision-makers with clear, actionable insights to help drive strategic initiatives, improve customer experiences, and optimize business performance and most imporntantly **Retain Customers**.
-    """)
-
-    st.header("Usability")
-    st.markdown("""
-    - **Data Exploration**: A thorough examination of the dataset used, including available columns, context, statistical summary, and data types.
-    - **Data Visualization**: Interactive charts and graphs that provide a clear visual representation of the data, categorised into Customer Demographics and Provided services and Financial trends.  
-    - **Predictive Analytics**: Predictive Machine Learning models that forecast trends of Customer status or Customer Retention within Outlook Telecom.  
-    - **Actionable Insights**: Data-driven suggestions for improving business operations and customer satisfaction and retention.
-    """)
-
-    st.header("Objectives")
-    st.markdown("""
-    Through this app, we hope to empower OutLook Telecom's management with the tools they need to analyze performance, identify areas for improvement, and make data-driven decisions that foster growth and success in the telecom industry.
+    The primary goal of this project is to identify the most significant predictors of standardised test performance and evaluate how different educational environments contribute to student outcomes. Combining interactive visualisations and statistical analysis, we aim to discover patterns and relationships that can inform data-driven educational policies and strategies to support students in their preparation for testing.
     """)
 
     st.header("Key Features")
     st.markdown("""
-    - **Welcome Page**: An introduction to the app, our client OutLook Telecom, and the the team
-    - **About Page**: A brief overview of the app's purpose and objectives, Features and Usability.  
-    - **Explore Page**: A detailed summary of the dataset, including available columns.
-    - **Predictions Page**: Machine learning models predicting customer churn and compare model perfomance.
-    - **Conclusion Page**: A summary of the findings and recommendations based on the analysis.
-                    
-    We hope you find the platform insightful and beneficial in making strategic decisions for OutLook Telecom's growth.
+    - **Data Exploration**: Comprehensive examination of the dataset is made through an overview of columns, data types, and statistics.
+    - **Data Visualisation**: Visual representation of data is facilitated through interactive graphs and charts, facilitating understanding of the discovered patterns and relationships between different performance factors.
+    - **Data-Driven Insights**: Analysis of synthetic data allows us to extrapolate conclusions into real-world settings, formulating relevant suggestions for improvement.
     """)
 
-    st.success("Dive into the data, discover insights, and keep learning .")
+    st.success("Dive into the data, discover insights, and keep learning.")
 
 # -----------------------------
 # DATA PRESENTATION TAB
@@ -199,14 +176,11 @@ if selected == "👩‍💻 Data Presentation":
 
     # --- Dictionary Tab ---
     if selected == "01: Dictionary":
-        st.subheader("Dataset Description")
+        st.header("Dataset Overview")
         st.markdown("""
-        **This dataset contains records of student performance**,  
-        including details about **attendance, study habits, engagement, demographics, and exam scores**.  
-        It allows us to:  
-        - Explore **factors affecting exam performance**,  
-        - Analyze the **impact of categorical and numerical features**,  
-        - Build **predictive models** to estimate student scores.
+        The dataset provides a comprehensive overview of various factors affecting student performance in exams. It includes information on study habits, attendance, parental involvement, and other aspects influencing academic success, which is measured by the final exam score.
+
+        The data consists of 6000+ synthetic student records and combines numerical, ordinal, and categorical variables to simulate diverse academic environments.
         """)
         
         st.subheader("Columns & Descriptions")
@@ -486,12 +460,23 @@ if selected == "🧠 Regressions":
             st.markdown("<br>", unsafe_allow_html=True) # Spacing alignment
             add_engagement = st.checkbox("Add 'Engagement' Feature", help="Multiplies Attendance by Hours_Studied")
 
+        selected_cols = st.multiselect(
+            "Select Features to Include",
+            options=[c for c in df.columns if c != TARGET_COL],
+            default=[c for c in df.columns if c != TARGET_COL],
+            help="Choose which columns to use as predictors in the model"
+        )
+
         train_clicked = st.button("🚀 Train Model", type="primary", use_container_width=True)
 
     if train_clicked:
+        if not selected_cols:
+            st.error("Select at least one feature before training.")
+            st.stop()
+
         with st.spinner(f"Training {model_name}..."):
             # Prepare X, y
-            X = df.drop(columns=[TARGET_COL]).copy()
+            X = df[selected_cols].copy()
             y = df[TARGET_COL].copy()
 
             # Add engagement feature (only if source columns exist)
@@ -528,16 +513,16 @@ if selected == "🧠 Regressions":
             if model_name == "Linear Regression":
                 model = LinearRegression()
             elif model_name == "Ridge":
-                model = Ridge(alpha=1.0)
+                model = Ridge(alpha=1.0, random_state=42)
             else:
-                model = Lasso(alpha=0.1, max_iter=10000)
+                model = Lasso(alpha=0.1, max_iter=10000, random_state=42)
 
             pipe = Pipeline(steps=[("prep", preprocessor), ("model", model)])
 
             # Split
             test_size = test_size_pct / 100.0
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size
+                X, y, test_size=test_size, random_state=42
             )
 
             # Train + evaluate
@@ -599,17 +584,12 @@ if selected == "🎬 Conclusion":
     - **Engagement** (Attendance × Hours Studied) can improve model performance when included as a feature.
 
     ## 🔹 Recommendations
-    Based on the analysis:
+    Based on the observed relationships, we propose the following measures to enhance objectivity of standardised testing across diverse academic settings:
 
-    1. Encourage **consistent class attendance** and **structured study hours**.  
-    2. Provide **additional learning resources** and support to students with lower motivation or parental involvement.  
-    3. Consider **tutoring programs** targeted at students struggling in key areas.  
-    4. Monitor **student engagement metrics** as an early indicator for potential performance issues.
-
-    ## 🔹 Next Steps
-    - Expand the dataset with more students or semesters to improve model accuracy.  
-    - Explore **advanced predictive models** (e.g., Random Forest, Gradient Boosting).  
-    - Integrate **interactive dashboards for teachers and parents** to track student progress in real time.  
+    1. **Equity-Focused Preparation Support** — Both tutoring sessions and resource access positively affect students’ scores. As such, College Board is advised to expand free or subsidised exam preparation programs, especially for students from public schools and power-income households. 
+    2. **Expanded Digital Access Programs** — Drawing upon the correlation between Internet access and performance, another suggestion is to provide reliable digital resources, practice platforms, and learning materials, targeted at disadvantaged communities. This would improve fairness in preparation opportunities.
+    3. **Attendance and Engagement Incentives** — Strong interaction between attendance and study time suggests that sustained student engagement during the learning process significantly improves their performance during the test. Schools should be encouraged to implement engagement tracking and targeted support for students with low attendance before the exam period.
+    4. **Holistic Admissions Advocacy** — Our findings reinforce the idea that standardised testing cannot be a universal measure of academic potential on its own, independent from the learning environment. College Board should advocate for admissions policies that combine test scores with school context indicators to maintain fairness. 
     """)
 
     st.success("This concludes the analysis. Use the other tabs to explore, visualize, and predict student performance. 🎓")
